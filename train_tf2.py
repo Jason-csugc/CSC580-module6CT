@@ -7,6 +7,9 @@ evaluates final test accuracy and prints total training time.
 
 import os
 import logging
+import warnings
+from time import time
+import numpy as np
 
 # Disable oneDNN optimizations for consistent performance
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -14,10 +17,16 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
+# Ignore NumPy 2.4 deprecation warning triggered by CIFAR-10 pickle loading.
+warnings.filterwarnings(
+    "ignore",
+    message=r".*align should be passed as Python or NumPy boolean.*",
+    category=Warning,
+)
+
+# pylint: disable=wrong-import-position
 import tensorflow as tf
 import keras as ks
-from time import time
-import numpy as np
 
 tf.random.set_seed(21)
 

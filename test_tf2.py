@@ -7,6 +7,10 @@ error (ECE), and visual plots of top predictions and misclassifications.
 
 import os
 import logging
+import warnings
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import precision_score, recall_score, f1_score, classification_report
 
 # Disable oneDNN optimizations for consistent performance
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
@@ -14,11 +18,16 @@ os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
-import numpy as np
+# Ignore NumPy 2.4 deprecation warning triggered by CIFAR-10 pickle loading.
+warnings.filterwarnings(
+    "ignore",
+    message=r".*align should be passed as Python or NumPy boolean.*",
+    category=Warning,
+)
+
+# pylint: disable=wrong-import-position
 import tensorflow as tf
 import keras as ks
-import matplotlib.pyplot as plt
-from sklearn.metrics import precision_score, recall_score, f1_score, classification_report
 
 tf.random.set_seed(21)
 np.random.seed(21)
@@ -111,6 +120,14 @@ def print_accuracy(pred_classes, true_classes, x_test):
 
 
 def unnormalize(img):
+    """Convert a standardized CIFAR-10 image back to displayable RGB values.
+
+    Args:
+        img (np.ndarray): Image normalized with CIFAR-10 channel mean/std.
+
+    Returns:
+        np.ndarray: Image in [approximately 0, 1] RGB space for plotting.
+    """
     mean = np.array([0.4914, 0.4822, 0.4465])
     std  = np.array([0.2470, 0.2435, 0.2616])
     return (img * std) + mean
