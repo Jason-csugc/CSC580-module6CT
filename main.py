@@ -136,10 +136,8 @@ class_names = [
 # =========================
 predictions = model.predict(x_test, batch_size=128)
 
-# Predicted class + confidence
 pred_classes = np.argmax(predictions, axis=1)
 confidences = np.max(predictions, axis=1)
-
 true_classes = y_test.flatten()
 
 # =========================
@@ -148,40 +146,34 @@ true_classes = y_test.flatten()
 top_images_per_class = {}
 
 for class_idx in range(10):
-    # Get indices where prediction == class
     idxs = np.where(pred_classes == class_idx)[0]
-
-    # Sort those by confidence (descending)
     sorted_idxs = idxs[np.argsort(confidences[idxs])[::-1]]
-
-    # Take top 8
     top_images_per_class[class_idx] = sorted_idxs[:8]
 
 # =========================
-# PLOT GRID (10 rows x 8 cols)
+# PLOT (8 rows x 10 columns)
 # =========================
-fig, axes = plt.subplots(10, 8, figsize=(16, 20))
+rows = 8
+cols = 10
 
-for class_idx in range(10):
-    for i in range(8):
-        ax = axes[class_idx, i]
+fig, axes = plt.subplots(rows, cols, figsize=(20, 12))
 
-        if i < len(top_images_per_class[class_idx]):
-            img_idx = top_images_per_class[class_idx][i]
+for col in range(cols):  # each column = class
+    for row in range(rows):  # each row = image
+        ax = axes[row, col]
+
+        if row < len(top_images_per_class[col]):
+            img_idx = top_images_per_class[col][row]
             ax.imshow(x_test[img_idx])
-
-            # Show confidence
-            conf = confidences[img_idx]
-            ax.set_title(f"{conf:.2f}", fontsize=8)
         else:
             ax.imshow(np.zeros((32,32,3)))
 
         ax.axis('off')
 
-    # Label each row with class name
-    axes[class_idx, 0].set_ylabel(class_names[class_idx], fontsize=12)
+    # Set column titles (top row only)
+    axes[0, col].set_title(class_names[col], fontsize=12)
 
-plt.suptitle("Top 8 Highest-Confidence Predictions Per Class", fontsize=18)
+plt.suptitle("Top 8 Predictions per Class (Organized by Category)", fontsize=18)
 plt.tight_layout()
 plt.show()
 
