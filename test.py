@@ -19,7 +19,7 @@ np.random.seed(21)
 # PARAMETERS
 # =========================
 BATCH_SIZE = 128
-MODEL_PATH = "./tensorboard/cifar10_tf2/best_model.keras"
+MODEL_PATH = "./tensorboard/cifar10_deeper_tf2/best_model.keras"
 
 # =========================
 # LOAD CIFAR-10 DATA

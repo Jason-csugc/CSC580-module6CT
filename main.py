@@ -10,7 +10,6 @@ import tensorflow as tf
 import keras as ks
 import numpy as np
 from time import time
-import matplotlib.pyplot as plt
 
 # warnings.filterwarnings('ignore', category=np.VisibleDeprecationWarning)
 
@@ -26,48 +25,69 @@ tf.random.set_seed(21)
 x_train = x_train / 255.0
 x_test = x_test / 255.0
 
-# Convert labels to categorical
-y_train = ks.utils.to_categorical(y_train, 10)
-y_test = ks.utils.to_categorical(y_test, 10)
+# CIFAR-10 normalization
+cifar10_mean = np.array([0.4914, 0.4822, 0.4465], dtype=np.float32)
+cifar10_std = np.array([0.2470, 0.2435, 0.2616], dtype=np.float32)
+
+x_train = (x_train - cifar10_mean) / cifar10_std
+x_test = (x_test - cifar10_mean) / cifar10_std
+
+y_train_cat = ks.utils.to_categorical(y_train, 10)
+y_test_cat = ks.utils.to_categorical(y_test, 10)
 
 # =========================
 # PARAMETERS
 # =========================
 BATCH_SIZE = 128
-EPOCHS = 20
-LOG_DIR = "./tensorboard/cifar10_tf2/"
+EPOCHS = 60
+LOG_DIR = "./tensorboard/cifar10_deeper_tf2/"
+MODEL_PATH = LOG_DIR + "best_model.keras"
 
 # =========================
-# BUILD CNN MODEL
+# DEEPER CNN MODEL
 # =========================
-model = ks.models.Sequential([
+model = ks.Sequential([
+
+    ks.layers.Input(shape=(32, 32, 3)),
 
     # Block 1
-    ks.Input(shape=(32, 32, 3)),
-    ks.layers.Conv2D(32, (3,3), activation='relu', padding='same'),
+    ks.layers.Conv2D(64, (3, 3), padding="same", activation="relu"),
     ks.layers.BatchNormalization(),
-    ks.layers.Conv2D(32, (3,3), activation='relu'),
-    ks.layers.MaxPooling2D((2,2)),
+    ks.layers.Conv2D(64, (3, 3), padding="same", activation="relu"),
+    ks.layers.BatchNormalization(),
+    ks.layers.MaxPooling2D((2, 2)),
     ks.layers.Dropout(0.25),
 
     # Block 2
-    ks.layers.Conv2D(64, (3,3), activation='relu', padding='same'),
+    ks.layers.Conv2D(128, (3, 3), padding="same", activation="relu"),
     ks.layers.BatchNormalization(),
-    ks.layers.Conv2D(64, (3,3), activation='relu'),
-    ks.layers.MaxPooling2D((2,2)),
-    ks.layers.Dropout(0.25),
+    ks.layers.Conv2D(128, (3, 3), padding="same", activation="relu"),
+    ks.layers.BatchNormalization(),
+    ks.layers.MaxPooling2D((2, 2)),
+    ks.layers.Dropout(0.30),
 
     # Block 3
-    ks.layers.Conv2D(128, (3,3), activation='relu', padding='same'),
+    ks.layers.Conv2D(256, (3, 3), padding="same", activation="relu"),
     ks.layers.BatchNormalization(),
-    ks.layers.MaxPooling2D((2,2)),
-    ks.layers.Dropout(0.25),
+    ks.layers.Conv2D(256, (3, 3), padding="same", activation="relu"),
+    ks.layers.BatchNormalization(),
+    ks.layers.Conv2D(256, (3, 3), padding="same", activation="relu"),
+    ks.layers.BatchNormalization(),
+    ks.layers.MaxPooling2D((2, 2)),
+    ks.layers.Dropout(0.40),
 
-    # Fully Connected
-    ks.layers.Flatten(),
-    ks.layers.Dense(128, activation='relu'),
-    ks.layers.Dropout(0.5),
-    ks.layers.Dense(10, activation='softmax')
+    # Block 4
+    ks.layers.Conv2D(512, (3, 3), padding="same", activation="relu"),
+    ks.layers.BatchNormalization(),
+    ks.layers.Conv2D(512, (3, 3), padding="same", activation="relu"),
+    ks.layers.BatchNormalization(),
+    ks.layers.GlobalAveragePooling2D(),
+
+    # Classifier
+    ks.layers.Dense(256, activation="relu"),
+    ks.layers.BatchNormalization(),
+    ks.layers.Dropout(0.50),
+    ks.layers.Dense(10, activation="softmax")
 ])
 
 # =========================
@@ -75,23 +95,41 @@ model = ks.models.Sequential([
 # =========================
 model.compile(
     optimizer=ks.optimizers.Adam(learning_rate=0.001),
-    loss='categorical_crossentropy',
-    metrics=['accuracy']
+    loss="categorical_crossentropy",
+    metrics=["accuracy"]
 )
 
-# model.summary()
+model.summary()
 
 # =========================
-# CALLBACKS (TensorBoard + Checkpoint)
+# CALLBACKS
 # =========================
-tensorboard = ks.callbacks.TensorBoard(log_dir=LOG_DIR)
+callbacks = [
+    ks.callbacks.TensorBoard(log_dir=LOG_DIR),
 
-checkpoint = ks.callbacks.ModelCheckpoint(
-    filepath=LOG_DIR + "best_model.keras",
-    monitor='val_accuracy',
-    save_best_only=True,
-    verbose=1
-)
+    ks.callbacks.ModelCheckpoint(
+        filepath=MODEL_PATH,
+        monitor="val_accuracy",
+        save_best_only=True,
+        mode="max",
+        verbose=1
+    ),
+
+    ks.callbacks.ReduceLROnPlateau(
+        monitor="val_loss",
+        factor=0.5,
+        patience=4,
+        min_lr=1e-6,
+        verbose=1
+    ),
+
+    ks.callbacks.EarlyStopping(
+        monitor="val_loss",
+        patience=10,
+        restore_best_weights=True,
+        verbose=1
+    )
+]
 
 # =========================
 # TRAIN MODEL
@@ -99,20 +137,26 @@ checkpoint = ks.callbacks.ModelCheckpoint(
 start_time = time()
 
 history = model.fit(
-    x_train, y_train,
+    x_train,
+    y_train_cat,
     batch_size=BATCH_SIZE,
     epochs=EPOCHS,
-    validation_data=(x_test, y_test),
-    callbacks=[tensorboard, checkpoint],
+    validation_data=(x_test, y_test_cat),
+    callbacks=callbacks,
     verbose=1
 )
 
 # =========================
 # EVALUATE MODEL
 # =========================
-test_loss, test_acc = model.evaluate(x_test, y_test, verbose=0)
+test_loss, test_acc = model.evaluate(x_test, y_test_cat, verbose=0)
 
-print("\nFinal Test Accuracy: {:.2f}%".format(test_acc * 100))
+print(f"\nFinal Test Accuracy: {test_acc * 100:.2f}%")
+
+hours, rem = divmod(time() - start_time, 3600)
+minutes, seconds = divmod(rem, 60)
+
+print(f"Training time: {int(hours):02}:{int(minutes):02}:{seconds:05.2f}")
 
 # =========================
 # TRAINING TIME
@@ -121,95 +165,4 @@ end_time = time()
 hours, rem = divmod(end_time - start_time, 3600)
 minutes, seconds = divmod(rem, 60)
 
-print("Training time: {:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
-
-# =========================
-# CIFAR-10 CLASS NAMES
-# =========================
-class_names = [
-    'airplane', 'automobile', 'bird', 'cat', 'deer',
-    'dog', 'frog', 'horse', 'ship', 'truck'
-]
-
-# =========================
-# PREDICT ON TEST SET
-# =========================
-predictions = model.predict(x_test, batch_size=128)
-
-pred_classes = np.argmax(predictions, axis=1)
-confidences = np.max(predictions, axis=1)
-true_classes = y_test.flatten()
-
-# =========================
-# SELECT TOP 8 PER CLASS
-# =========================
-top_images_per_class = {}
-
-for class_idx in range(10):
-    idxs = np.where(pred_classes == class_idx)[0]
-    sorted_idxs = idxs[np.argsort(confidences[idxs])[::-1]]
-    top_images_per_class[class_idx] = sorted_idxs[:8]
-
-# =========================
-# PLOT (8 rows x 10 columns)
-# =========================
-rows = 8
-cols = 10
-
-fig, axes = plt.subplots(rows, cols, figsize=(20, 12))
-
-for col in range(cols):  # each column = class
-    for row in range(rows):  # each row = image
-        ax = axes[row, col]
-
-        if row < len(top_images_per_class[col]):
-            img_idx = top_images_per_class[col][row]
-            ax.imshow(x_test[img_idx])
-        else:
-            ax.imshow(np.zeros((32,32,3)))
-
-        ax.axis('off')
-
-    # Set column titles (top row only)
-    axes[0, col].set_title(class_names[col], fontsize=12)
-
-plt.suptitle("Top 8 Predictions per Class (Organized by Category)", fontsize=18)
-plt.tight_layout()
-plt.show()
-
-# =========================
-# FIND MISCLASSIFICATIONS
-# =========================
-# wrong_idxs = np.where(pred_classes != true_classes)[0]
-
-# Sort mistakes by confidence (descending → worst mistakes first)
-# sorted_wrong = wrong_idxs[np.argsort(confidences[wrong_idxs])[::-1]]
-
-# Number of images to display
-# N = 40
-
-# =========================
-# PLOT GRID
-# =========================
-# rows = 5
-# cols = 8
-
-# fig, axes = plt.subplots(rows, cols, figsize=(16, 10))
-
-# for i in range(N):
-#     ax = axes[i // cols, i % cols]
-    
-#     idx = sorted_wrong[i]
-#     img = x_test[idx]
-    
-#     true_label = class_names[true_classes[idx]]
-#     pred_label = class_names[pred_classes[idx]]
-#     conf = confidences[idx]
-    
-#     ax.imshow(img)
-#     ax.set_title(f"T:{true_label}\nP:{pred_label} ({conf:.2f})", fontsize=8)
-#     ax.axis('off')
-
-# plt.suptitle("Most Confident WRONG Predictions (Model Mistakes)", fontsize=16)
-# plt.tight_layout()
-# plt.show()
+print(f"Training time: {int(hours):02}:{int(minutes):02}:{seconds:05.2f}")
