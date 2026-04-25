@@ -92,7 +92,14 @@ tensorboard --logdir tensorboard/cifar10_tf2
 - Best trained model saved at `tensorboard/cifar10_tf2/best_model.keras`
 - TensorBoard event files in `tensorboard/cifar10_tf2/`
 - Matplotlib figure showing top-confidence predictions for each CIFAR-10 class
+
+<img width="2012" height="1270" alt="image" src="https://github.com/user-attachments/assets/48e72ddb-94bc-4033-9891-066fb3bea497" />
+
+  
 - Matplotlib figure showing the most confident misclassifications
+
+<img width="1610" height="1073" alt="image" src="https://github.com/user-attachments/assets/5370b6cb-5667-468d-b39a-c4bc6714e312" />
+
 
 ## Additional Links
 
