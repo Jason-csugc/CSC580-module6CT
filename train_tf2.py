@@ -66,15 +66,16 @@ def load_data():
     x_test = x_test.astype("float32") / 255.0
 
     # CIFAR-10 channel statistics
-    cifar10_mean = [0.4914, 0.4822, 0.4465]
-    cifar10_std  = [0.2470, 0.2435, 0.2616]
+
+    print("Mean:", np.mean(x_train, axis=(0,1,2)))
+    print("Std:", np.std(x_train, axis=(0,1,2)))
+
+    cifar10_mean = np.mean(x_train, axis=(0,1,2))
+    cifar10_std  = np.std(x_train, axis=(0,1,2))
 
     # Normalize (broadcasts across image)
     x_train = (x_train - cifar10_mean) / cifar10_std
     x_test  = (x_test  - cifar10_mean) / cifar10_std
-
-    print("Mean:", np.mean(x_train, axis=(0,1,2)))
-    print("Std:", np.std(x_train, axis=(0,1,2)))
 
     # One-hot encode labels
     y_train = ks.utils.to_categorical(y_train, 10)
