@@ -62,6 +62,7 @@ def load_data():
     x_test = x_test.astype("float32") / 255.0
 
     # SAME normalization as training
+    # calculated from the training set in train_tf2.py
     cifar10_mean = [0.4914, 0.4822, 0.4465]
     cifar10_std  = [0.2470, 0.2435, 0.2616]
 
